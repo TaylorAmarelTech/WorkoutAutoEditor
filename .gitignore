@@ -1,0 +1,53 @@
+# Gradle
+.gradle/
+build/
+out/
+!gradle-wrapper.jar
+!gradle-wrapper.properties
+
+# Android Studio / IntelliJ
+.idea/
+*.iml
+*.iws
+*.ipr
+local.properties
+
+# Captures
+captures/
+
+# Generated files
+**/generated/
+**/build/
+
+# Native
+.cxx/
+
+# macOS / Windows / Linux noise
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Keystores (debug.keystore is auto-generated, prod keystores never committed)
+*.jks
+*.keystore
+
+# Coverage / IDE caches
+.kotlin/
+*.hprof
+
+# Bundled model assets (CI populates these; do not commit large binaries)
+app/src/main/assets/pose_landmarker_full.task
+app/src/main/assets/*.task
+app/src/main/assets/*.litertlm
+app/src/main/assets/*.tflite
+
+# Claude session state in this checkout (everything under .claude/)
+.claude/
+
+# OneDrive sync artifacts
+*.tmp
+~$*
+
+# CI artifacts
+*.apk
+*.aab

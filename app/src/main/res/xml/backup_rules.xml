@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<full-backup-content>
+    <exclude domain="external" path="models/" />
+    <exclude domain="external" path="recordings/" />
+    <exclude domain="external" path="renders/" />
+</full-backup-content>
