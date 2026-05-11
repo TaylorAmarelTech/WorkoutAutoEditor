@@ -1,0 +1,2 @@
+[console_scripts]
+vidcut = vidcut.cli:app

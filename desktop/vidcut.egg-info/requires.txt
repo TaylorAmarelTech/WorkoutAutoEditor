@@ -1,0 +1,18 @@
+typer>=0.12
+pydantic>=2.5
+requests>=2.31
+rich>=13.7
+
+[all]
+gradio>=4.36
+
+[all:python_version < "3.13"]
+mediapipe>=0.10.14
+
+[pose]
+
+[pose:python_version < "3.13"]
+mediapipe>=0.10.14
+
+[ui]
+gradio>=4.36
