@@ -1,6 +1,7 @@
 package com.workout.autoeditor.pipeline
 
 import android.content.Context
+import com.workout.autoeditor.data.AppPrefs
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -13,10 +14,9 @@ import java.util.concurrent.TimeUnit
 /**
  * Resumable HTTP download with progress events.
  *
- * Default URL is the LiteRT-community Gemma 3 1B INT4 task file (~530 MB).
- * Override via setModelUrl() at runtime for custom hosts.
- *
- * Validates by file size after download; safe to abort and resume.
+ * Default URL points at a Hugging Face hosted Gemma model. Most Gemma URLs
+ * are gated and return HTTP 401; supply a token via AppPrefs.hfToken or
+ * override the URL via AppPrefs.customModelUrl to point at a public host.
  */
 class ModelDownloader(private val ctx: Context) {
 
@@ -27,9 +27,11 @@ class ModelDownloader(private val ctx: Context) {
         private const val MODEL_FILE = "gemma.task"
     }
 
+    private val prefs by lazy { AppPrefs(ctx) }
+
     private val client by lazy {
         OkHttpClient.Builder()
-            .connectTimeout(60, TimeUnit.SECONDS)
+            .connectTimeout(30, TimeUnit.SECONDS)
             .readTimeout(120, TimeUnit.SECONDS)
             .writeTimeout(120, TimeUnit.SECONDS)
             .build()
@@ -45,13 +47,19 @@ class ModelDownloader(private val ctx: Context) {
         return f.exists() && f.length() >= minBytes
     }
 
+    /** Effective URL — user override wins over default. */
+    fun activeUrl(): String = prefs.customModelUrl ?: DEFAULT_MODEL_URL
+
     sealed class Event {
         data class Progress(val downloadedBytes: Long, val totalBytes: Long) : Event()
         data class Done(val file: File) : Event()
-        data class Failed(val reason: String) : Event()
+        data class Failed(val reason: String, val httpCode: Int? = null) : Event()
     }
 
-    fun download(url: String = DEFAULT_MODEL_URL): Flow<Event> = flow<Event> {
+    fun download(
+        url: String = activeUrl(),
+        token: String? = prefs.hfToken,
+    ): Flow<Event> = flow<Event> {
         val target = modelFile()
         val partial = File(target.parentFile, target.name + ".part")
         val resumeFrom = if (partial.exists()) partial.length() else 0L
@@ -60,24 +68,31 @@ class ModelDownloader(private val ctx: Context) {
             .url(url)
             .apply {
                 if (resumeFrom > 0) header("Range", "bytes=$resumeFrom-")
+                if (!token.isNullOrBlank()) header("Authorization", "Bearer $token")
             }
             .build()
-        val call = client.newCall(req)
 
         val response = try {
-            call.execute()
+            client.newCall(req).execute()
         } catch (t: Throwable) {
-            emit(Event.Failed("network: ${t.message}"))
+            emit(Event.Failed("network: ${t.message ?: t::class.simpleName}"))
             return@flow
         }
 
         response.use { resp ->
             if (!resp.isSuccessful && resp.code != 206) {
-                emit(Event.Failed("http ${resp.code}"))
+                val msg = when (resp.code) {
+                    401 -> "Model URL needs authentication (401). Add a Hugging Face token in Configure, or use a public model URL."
+                    403 -> "Access forbidden (403). Accept the model license on Hugging Face first, then add a token."
+                    404 -> "Model not found at this URL (404). Check the URL in Configure."
+                    in 500..599 -> "Server error ${resp.code}. Try again later."
+                    else -> "HTTP ${resp.code}"
+                }
+                emit(Event.Failed(msg, resp.code))
                 return@flow
             }
             val body = resp.body ?: run {
-                emit(Event.Failed("no body"))
+                emit(Event.Failed("empty response body"))
                 return@flow
             }
             val totalAdditional = body.contentLength().takeIf { it >= 0L } ?: -1L
@@ -108,17 +123,17 @@ class ModelDownloader(private val ctx: Context) {
                 }
                 sink.flush()
             } catch (t: Throwable) {
-                emit(Event.Failed("io: ${t.message}"))
+                emit(Event.Failed("io: ${t.message ?: t::class.simpleName}"))
                 return@flow
             } finally {
-                try { sink.close() } catch (_: Throwable) {}
-                try { src.close() } catch (_: Throwable) {}
+                runCatching { sink.close() }
+                runCatching { src.close() }
             }
         }
 
         if (target.exists()) target.delete()
         if (!partial.renameTo(target)) {
-            emit(Event.Failed("rename"))
+            emit(Event.Failed("could not finalize file rename"))
             return@flow
         }
         emit(Event.Done(target))

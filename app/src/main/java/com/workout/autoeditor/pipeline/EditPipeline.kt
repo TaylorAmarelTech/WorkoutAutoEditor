@@ -23,10 +23,12 @@ import java.io.File
  * Orchestrates the full pipeline. Resources are opened and closed in sequence
  * so we never hold Gemma + Pose Landmarker in memory simultaneously.
  *
- *   Phase A: parseInstruction(...)  -> EditPolicy   (~3 s, cheap, returns immediately)
- *   Phase B: runFromPolicy(...)     -> File          (heavy: pose / audio / Gemma / render)
+ * Two phases:
+ *   - parseInstruction(...)  -> EditPolicy   (cheap; LLM-optional, falls back to DEFAULT_TIGHT)
+ *   - runFromPolicy(...)     -> File          (heavy: pose / audio / [LLM annotate] / render)
  *
- * UI calls A, displays the parsed policy for confirmation, then calls B.
+ * If `modelPath` is null or points at a missing file, the LLM steps are skipped
+ * cleanly and the cut-list is built from cheap signals alone.
  */
 class EditPipeline(private val ctx: Context) {
 
@@ -43,19 +45,28 @@ class EditPipeline(private val ctx: Context) {
         data class Failed(val reason: String) : Stage()
     }
 
-    suspend fun parseInstruction(instruction: String, modelPath: String): EditPolicy {
-        val gemma = GemmaService(ctx, modelPath)
+    private fun llmAvailable(modelPath: String?): Boolean {
+        if (modelPath.isNullOrBlank()) return false
+        val f = File(modelPath)
+        return f.exists() && f.length() > 100_000_000L
+    }
+
+    suspend fun parseInstruction(instruction: String, modelPath: String?): EditPolicy {
+        if (!llmAvailable(modelPath)) return EditPolicy.DEFAULT_TIGHT
+        val gemma = GemmaService(ctx, modelPath!!)
         return try {
             InstructionParser(gemma).parse(instruction)
+        } catch (_: Throwable) {
+            EditPolicy.DEFAULT_TIGHT
         } finally {
-            gemma.close()
+            runCatching { gemma.close() }
         }
     }
 
     fun runFromPolicy(
         sourceUri: Uri,
         policy: EditPolicy,
-        modelPath: String,
+        modelPath: String?,
         outputFile: File,
     ): Flow<Stage> = flow {
         try {
@@ -77,13 +88,17 @@ class EditPipeline(private val ctx: Context) {
             emit(Stage.Timeline)
             val segments = TimelineBuilder(classifier).build(frames, envelope)
 
-            emit(Stage.Keyframes)
-            val gemma = GemmaService(ctx, modelPath)
-            val annotated = try {
-                KeyframeAnnotator(gemma).annotate(segments)
-            } finally {
-                gemma.close()
-            }
+            val annotated = if (llmAvailable(modelPath)) {
+                emit(Stage.Keyframes)
+                val gemma = GemmaService(ctx, modelPath!!)
+                try {
+                    KeyframeAnnotator(gemma).annotate(segments)
+                } catch (_: Throwable) {
+                    segments
+                } finally {
+                    runCatching { gemma.close() }
+                }
+            } else segments
 
             emit(Stage.Cutting)
             val cutList: CutList = CutListBuilder(policy).build(sourceUri.toString(), annotated)

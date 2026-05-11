@@ -88,7 +88,7 @@ class EditPipelineService : LifecycleService() {
     fun startParsing(
         source: Uri,
         instruction: String,
-        modelPath: String,
+        modelPath: String?,
         output: File,
     ) {
         if (_phase.value == Phase.PARSING_INSTRUCTION || _phase.value == Phase.PROCESSING) return
@@ -112,7 +112,7 @@ class EditPipelineService : LifecycleService() {
     fun confirmAndProceed(override: EditPolicy?) {
         if (_phase.value != Phase.AWAITING_CONFIRMATION) return
         val source = pendingSource ?: return
-        val modelPath = pendingModelPath ?: return
+        val modelPath = pendingModelPath
         val output = pendingOutput ?: return
         val policy = override ?: _parsedPolicy.value ?: EditPolicy.DEFAULT_TIGHT
         _parsedPolicy.value = policy

@@ -61,7 +61,8 @@ fun PlanScreen(
                 val downloader = ModelDownloader(ctx)
                 val outDir = File(ctx.getExternalFilesDir(null), "renders").apply { mkdirs() }
                 val out = File(outDir, "edited-${System.currentTimeMillis()}.mp4")
-                service.startParsing(sourceUri, instruction, downloader.modelFile().absolutePath, out)
+                val modelPath = if (downloader.isModelPresent()) downloader.modelFile().absolutePath else null
+                service.startParsing(sourceUri, instruction, modelPath, out)
                 onStarted()
             },
             modifier = Modifier.fillMaxWidth(),
