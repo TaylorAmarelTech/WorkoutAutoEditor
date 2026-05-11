@@ -31,7 +31,7 @@ class GemmaService(
         val opts = LlmInference.LlmInferenceOptions.builder()
             .setModelPath(modelPath)
             .setMaxTokens(maxTokens)
-            .setMaxTopK(topK)
+            .setTopK(topK)
             .setTemperature(temperature)
             .build()
         val inf = LlmInference.createFromOptions(ctx, opts)
