@@ -48,7 +48,6 @@ jobs:
 
       - name: Run unit tests
         run: ./gradlew :app:testDebugUnitTest --stacktrace
-        continue-on-error: true
 
       - name: Upload test results
         if: always()

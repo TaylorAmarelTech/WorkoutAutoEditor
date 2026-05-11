@@ -9,17 +9,18 @@ import org.junit.Test
 class RepDetectorTest {
 
     private fun frame(t: Long, kneeAngleDeg: Float): PoseFrame {
-        val lm = MutableList(33) {
-            PoseLandmark(0f, 0f, 0f, 1f, 1f)
-        }
-        lm[23] = PoseLandmark(0f, 0f, 0f, 1f, 1f)
-        lm[27] = PoseLandmark(0f, 1f, 0f, 1f, 1f)
+        // Builds a synthetic pose where the angle hip(23)-knee(25)-ankle(27)
+        // equals kneeAngleDeg. Hip at origin, knee directly below at (0, 0.5),
+        // ankle swung out so the bend at the knee is exactly the requested angle.
+        // For θ=180 ankle=(0,1) (straight leg), θ=90 ankle=(0.5,0.5) (right angle),
+        // θ=0 ankle=(0,0) (fully folded).
+        val lm = MutableList(33) { PoseLandmark(0f, 0f, 0f, 1f, 1f) }
         val rad = Math.toRadians(kneeAngleDeg.toDouble())
-        lm[25] = PoseLandmark(
-            x = Math.sin(rad).toFloat() * 0.5f,
-            y = Math.cos(rad).toFloat() * 0.5f,
-            z = 0f, visibility = 1f, presence = 1f,
-        )
+        val sinT = Math.sin(rad).toFloat()
+        val cosT = Math.cos(rad).toFloat()
+        lm[23] = PoseLandmark(0f, 0f, 0f, 1f, 1f)
+        lm[25] = PoseLandmark(0f, 0.5f, 0f, 1f, 1f)
+        lm[27] = PoseLandmark(0.5f * sinT, 0.5f - 0.5f * cosT, 0f, 1f, 1f)
         return PoseFrame(t, lm)
     }
 
