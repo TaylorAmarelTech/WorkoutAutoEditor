@@ -1,7 +1,7 @@
 """Data models shared across CLI, pipeline, and Gradio UI."""
 from __future__ import annotations
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, ValidationInfo, field_validator
 
 
 class Scene(BaseModel):
@@ -24,7 +24,7 @@ class CutSpan(BaseModel):
 
     @field_validator("end_ms")
     @classmethod
-    def _end_after_start(cls, v: int, info) -> int:
+    def _end_after_start(cls, v: int, info: ValidationInfo) -> int:
         start = info.data.get("start_ms", 0)
         if v <= start:
             raise ValueError(f"end_ms ({v}) must be > start_ms ({start})")

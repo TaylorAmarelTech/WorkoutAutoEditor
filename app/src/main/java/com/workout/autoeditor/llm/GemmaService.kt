@@ -43,7 +43,10 @@ class GemmaService(
         val inf = ensureLoaded()
         try {
             inf.generateResponse(prompt) ?: ""
+        } catch (ce: kotlinx.coroutines.CancellationException) {
+            throw ce
         } catch (t: Throwable) {
+            android.util.Log.w("GemmaService", "generateResponse failed", t)
             ""
         }
     }

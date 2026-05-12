@@ -41,7 +41,10 @@ fun rememberPipelineService(): State<EditPipelineService?> {
         }
         ctx.bindService(intent, conn, Context.BIND_AUTO_CREATE)
         onDispose {
+            // Unbind first, then stop. The service kills itself when no
+            // clients are bound, but stopService is the explicit close.
             try { ctx.unbindService(conn) } catch (_: Throwable) {}
+            try { ctx.stopService(intent) } catch (_: Throwable) {}
         }
     }
     return state

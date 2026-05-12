@@ -102,6 +102,9 @@ class EditPipelineService : LifecycleService() {
                 val policy = pipeline!!.parseInstruction(instruction, modelPath)
                 _parsedPolicy.value = policy
                 _phase.value = Phase.AWAITING_CONFIRMATION
+            } catch (ce: kotlinx.coroutines.CancellationException) {
+                // Deliberate cancel - return cleanly, don't show FAILED.
+                throw ce
             } catch (t: Throwable) {
                 _error.value = t.message ?: t::class.simpleName
                 _phase.value = Phase.FAILED
@@ -130,6 +133,8 @@ class EditPipelineService : LifecycleService() {
                         _phase.value = Phase.FAILED
                     }
                 }
+            } catch (ce: kotlinx.coroutines.CancellationException) {
+                throw ce
             } catch (t: Throwable) {
                 _error.value = t.message ?: t::class.simpleName
                 _phase.value = Phase.FAILED

@@ -38,6 +38,19 @@ def render(source: Path, plan: CutPlan, output: Path, reencode: bool = True) -> 
     return output
 
 
+def _run_ffmpeg(cmd: list[str]) -> None:
+    """Run ffmpeg with captured stderr so failures surface a useful message."""
+    try:
+        subprocess.run(cmd, check=True, capture_output=True, text=True)
+    except FileNotFoundError as e:
+        raise RuntimeError("ffmpeg not found on PATH. Install ffmpeg.") from e
+    except subprocess.CalledProcessError as e:
+        tail = (e.stderr or "").strip().splitlines()[-3:]
+        raise RuntimeError(
+            "ffmpeg failed (exit " + str(e.returncode) + "): " + " | ".join(tail)
+        ) from e
+
+
 def _cut_span(src: Path, start_ms: int, end_ms: int, dst: Path, reencode: bool) -> None:
     start_s = start_ms / 1000.0
     duration_s = (end_ms - start_ms) / 1000.0
@@ -61,7 +74,7 @@ def _cut_span(src: Path, start_ms: int, end_ms: int, dst: Path, reencode: bool) 
             "-c", "copy",
             str(dst),
         ]
-    subprocess.run(cmd, check=True)
+    _run_ffmpeg(cmd)
 
 
 def _concat(listfile: Path, dst: Path, reencode: bool) -> None:
@@ -79,7 +92,7 @@ def _concat(listfile: Path, dst: Path, reencode: bool) -> None:
         ]
     else:
         cmd = base + ["-c", "copy", "-movflags", "+faststart", str(dst)]
-    subprocess.run(cmd, check=True)
+    _run_ffmpeg(cmd)
 
 
 def have_ffmpeg() -> bool:

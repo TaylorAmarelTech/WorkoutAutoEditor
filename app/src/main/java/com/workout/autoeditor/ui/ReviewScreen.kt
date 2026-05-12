@@ -34,14 +34,17 @@ fun ReviewScreen(
     onConfirmed: () -> Unit,
     onCancel: () -> Unit,
 ) {
-    var dropWarmups by remember { mutableStateOf(policy.dropWarmups) }
-    var dropRest by remember { mutableStateOf(policy.dropRest) }
-    var dropIdle by remember { mutableStateOf(policy.dropIdle) }
-    var perExerciseCapSec by remember { mutableStateOf(policy.perExerciseCapMs / 1000f) }
-    var targetTotalSec by remember {
+    // Re-key all editable state to the incoming policy so a re-parse cleanly
+    // resets the toggles instead of silently keeping stale values from the
+    // previous attempt.
+    var dropWarmups by remember(policy) { mutableStateOf(policy.dropWarmups) }
+    var dropRest by remember(policy) { mutableStateOf(policy.dropRest) }
+    var dropIdle by remember(policy) { mutableStateOf(policy.dropIdle) }
+    var perExerciseCapSec by remember(policy) { mutableStateOf(policy.perExerciseCapMs / 1000f) }
+    var targetTotalSec by remember(policy) {
         mutableStateOf((policy.targetTotalMs ?: 90_000L) / 1000f)
     }
-    var minReps by remember { mutableStateOf(policy.minRepsPerSegment.toFloat()) }
+    var minReps by remember(policy) { mutableStateOf(policy.minRepsPerSegment.toFloat()) }
 
     Column(
         modifier = Modifier.fillMaxSize().padding(24.dp).verticalScroll(rememberScrollState()),

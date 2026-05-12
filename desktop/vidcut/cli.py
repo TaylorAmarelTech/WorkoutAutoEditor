@@ -7,13 +7,32 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
-from vidcut import editor, llm, pipeline
+from vidcut import __version__, editor, llm, pipeline
+from vidcut.pipeline import PipelineResult
+
+
+def _version_callback(value: bool) -> None:
+    if value:
+        typer.echo(f"vidcut {__version__}")
+        raise typer.Exit()
+
 
 app = typer.Typer(
     add_completion=False,
     help="Local Gemma-powered video editor (Ollama + ffmpeg).",
 )
 console = Console()
+
+
+@app.callback()
+def _main(
+    version: bool = typer.Option(
+        None, "--version", "-V",
+        callback=_version_callback, is_eager=True,
+        help="Show version and exit.",
+    ),
+) -> None:
+    """Root callback - the --version flag fires from here."""
 
 
 def _check_ffmpeg() -> None:
@@ -33,7 +52,11 @@ def plan(
     """Compute a cut plan and print it. Does not render."""
     _check_ffmpeg()
     console.print(f"[dim]Probing[/dim] {source.name}")
-    result = pipeline.plan_only(source, prompt, model=model, scene_threshold=threshold)
+    try:
+        result = pipeline.plan_only(source, prompt, model=model, scene_threshold=threshold)
+    except RuntimeError as e:
+        console.print(f"[red]{e}[/red]")
+        raise typer.Exit(code=2)
     _print_plan(result)
 
 
@@ -49,10 +72,14 @@ def edit(
     """Plan and render the edit to OUTPUT."""
     _check_ffmpeg()
     console.print(f"[dim]Editing[/dim] {source.name} -> {output.name}")
-    result = pipeline.edit(
-        source, prompt, output,
-        model=model, scene_threshold=threshold, reencode=not fast,
-    )
+    try:
+        result = pipeline.edit(
+            source, prompt, output,
+            model=model, scene_threshold=threshold, reencode=not fast,
+        )
+    except RuntimeError as e:
+        console.print(f"[red]{e}[/red]")
+        raise typer.Exit(code=2)
     _print_plan(result)
     console.print(f"[green]Wrote[/green] {result.output} ({result.plan.total_ms / 1000:.1f}s)")
 
@@ -72,7 +99,7 @@ def serve(
     launch(host=host, port=port, share=share)
 
 
-def _print_plan(result) -> None:
+def _print_plan(result: PipelineResult) -> None:
     table = Table(title=f"Cut plan ({len(result.plan.spans)} spans, {result.plan.total_ms / 1000:.1f}s total)")
     table.add_column("#", justify="right")
     table.add_column("Start")

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 import re
 from typing import Any
@@ -9,6 +10,8 @@ from typing import Any
 import requests
 
 from vidcut.models import CutPlan, CutSpan, Scene, VideoMeta
+
+log = logging.getLogger(__name__)
 
 OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434")
 # Gemma 4 is the only Gemma 4 tag in the Ollama library right now (8B params,
@@ -35,16 +38,39 @@ def _post(prompt: str, model: str, temperature: float = 0.2) -> str:
             f"Cannot reach Ollama at {OLLAMA_URL}. Run `ollama serve` in another terminal, "
             f"and `ollama pull {model}` if you have not yet."
         ) from e
+    except requests.exceptions.Timeout as e:
+        raise RuntimeError(f"Ollama request timed out after 180 s. Try a smaller model.") from e
+    except requests.exceptions.RequestException as e:
+        raise RuntimeError(f"Ollama HTTP error: {e}") from e
     if resp.status_code != 200:
         raise RuntimeError(f"Ollama returned HTTP {resp.status_code}: {resp.text[:300]}")
     return resp.json().get("response", "")
 
 
 def _balanced_json(raw: str) -> str | None:
-    """Extract the first balanced {...} or [...] from a model response."""
+    """Extract the first balanced {...} or [...] from a model response.
+
+    String-aware: braces inside JSON string literals do not affect depth.
+    Bails out for very large blobs (>1 MB) to avoid pathological inputs.
+    """
+    if len(raw) > 1_000_000:
+        return None
     depth = 0
     start = -1
+    in_string = False
+    escape = False
     for i, c in enumerate(raw):
+        if in_string:
+            if escape:
+                escape = False
+            elif c == "\\":
+                escape = True
+            elif c == '"':
+                in_string = False
+            continue
+        if c == '"':
+            in_string = True
+            continue
         if c in "{[":
             if depth == 0:
                 start = i
@@ -98,8 +124,12 @@ Reply with ONLY the JSON object, no commentary."""
     try:
         raw = _post(prompt, model=model)
     except RuntimeError as e:
+        log.warning("LLM call failed, using fallback plan: %s", e)
         return _fallback_plan(scenes, f"LLM unavailable: {str(e).split('.', 1)[0]}")
-    return _parse_plan(raw, scenes)
+    plan = _parse_plan(raw, scenes)
+    if plan.summary.startswith("fallback"):
+        log.warning("LLM response unusable, fell back: %s", plan.summary)
+    return plan
 
 
 def _parse_plan(raw: str, scenes: list[Scene]) -> CutPlan:

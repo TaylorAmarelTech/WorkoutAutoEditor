@@ -17,9 +17,11 @@ import androidx.camera.view.PreviewView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
 import com.workout.autoeditor.camera.CameraController.RecordingState
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.withContext
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -52,7 +54,10 @@ class CameraController(private val context: Context) {
         previewView: PreviewView,
         owner: LifecycleOwner,
     ) {
-        val provider = ProcessCameraProvider.getInstance(context).get()
+        // ListenableFuture.get() blocks the calling thread. Move off main.
+        val provider = withContext(Dispatchers.IO) {
+            ProcessCameraProvider.getInstance(context).get()
+        }
         provider.unbindAll()
         val preview = androidx.camera.core.Preview.Builder().build().also {
             it.surfaceProvider = previewView.surfaceProvider

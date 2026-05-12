@@ -17,8 +17,14 @@ def probe(video: Path) -> VideoMeta:
         "-show_format", "-show_streams",
         str(video),
     ]
-    out = subprocess.check_output(cmd, text=True)
-    data = json.loads(out)
+    try:
+        proc = subprocess.run(cmd, capture_output=True, text=True, check=True)
+    except FileNotFoundError as e:
+        raise RuntimeError("ffprobe not found on PATH. Install ffmpeg.") from e
+    except subprocess.CalledProcessError as e:
+        msg = (e.stderr or "").strip().splitlines()[-1] if e.stderr else f"exit {e.returncode}"
+        raise RuntimeError(f"ffprobe failed on {video}: {msg}") from e
+    data = json.loads(proc.stdout)
     fmt = data.get("format", {})
     streams = data.get("streams", [])
     v = next((s for s in streams if s.get("codec_type") == "video"), None)
@@ -40,7 +46,9 @@ def probe(video: Path) -> VideoMeta:
 def _parse_fps(s: str) -> float:
     if "/" in s:
         n, d = s.split("/")
-        return float(n) / float(d) if float(d) != 0 else 0.0
+        if float(d) == 0:
+            raise ValueError(f"invalid frame rate: {s}")
+        return float(n) / float(d)
     return float(s)
 
 
@@ -58,6 +66,9 @@ def detect_scenes(video: Path, threshold: float = 0.30) -> list[Scene]:
         "-f", "null", "-",
     ]
     proc = subprocess.run(cmd, capture_output=True, text=True)
+    if proc.returncode != 0:
+        last_err = (proc.stderr or "").strip().splitlines()[-1:] or [f"exit {proc.returncode}"]
+        raise RuntimeError(f"ffmpeg scene detection failed: {last_err[0]}")
     times_ms = sorted(_parse_showinfo_times(proc.stderr))
     boundaries = [0] + [int(t * 1000) for t in times_ms] + [meta.duration_ms]
     scenes: list[Scene] = []

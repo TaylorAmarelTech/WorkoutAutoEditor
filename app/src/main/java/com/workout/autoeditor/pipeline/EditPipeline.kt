@@ -56,7 +56,10 @@ class EditPipeline(private val ctx: Context) {
         val gemma = GemmaService(ctx, modelPath!!)
         return try {
             InstructionParser(gemma).parse(instruction)
-        } catch (_: Throwable) {
+        } catch (ce: kotlinx.coroutines.CancellationException) {
+            throw ce
+        } catch (t: Throwable) {
+            android.util.Log.w("EditPipeline", "InstructionParser failed, using DEFAULT_TIGHT", t)
             EditPolicy.DEFAULT_TIGHT
         } finally {
             runCatching { gemma.close() }
@@ -93,7 +96,10 @@ class EditPipeline(private val ctx: Context) {
                 val gemma = GemmaService(ctx, modelPath!!)
                 try {
                     KeyframeAnnotator(gemma).annotate(segments)
-                } catch (_: Throwable) {
+                } catch (ce: kotlinx.coroutines.CancellationException) {
+                    throw ce
+                } catch (t: Throwable) {
+                    android.util.Log.w("EditPipeline", "Keyframe annotation failed, skipping", t)
                     segments
                 } finally {
                     runCatching { gemma.close() }
@@ -110,6 +116,8 @@ class EditPipeline(private val ctx: Context) {
             emit(Stage.Rendering)
             val out = VideoEditor(ctx).render(cutList, outputFile)
             emit(Stage.Done(out))
+        } catch (ce: kotlinx.coroutines.CancellationException) {
+            throw ce
         } catch (t: Throwable) {
             emit(Stage.Failed(t.message ?: t::class.simpleName ?: "unknown"))
         }

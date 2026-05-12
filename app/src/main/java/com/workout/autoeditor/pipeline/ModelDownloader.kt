@@ -36,8 +36,16 @@ class ModelDownloader(private val ctx: Context) {
             .connectTimeout(30, TimeUnit.SECONDS)
             .readTimeout(120, TimeUnit.SECONDS)
             .writeTimeout(120, TimeUnit.SECONDS)
+            // Security: if the user attaches a HF bearer token, we MUST NOT
+            // follow redirects, otherwise a malicious redirect could exfil
+            // the token to an attacker host via the Authorization header.
+            .followRedirects(false)
+            .followSslRedirects(false)
             .build()
     }
+
+    /** Block schemes other than https to prevent SSRF / file:// reads. */
+    private fun isUrlSafe(url: String): Boolean = url.startsWith("https://")
 
     fun modelFile(): File {
         val dir = File(ctx.getExternalFilesDir(null), MODELS_DIR).apply { mkdirs() }
@@ -62,6 +70,10 @@ class ModelDownloader(private val ctx: Context) {
         url: String = activeUrl(),
         token: String? = prefs.hfToken,
     ): Flow<Event> = flow<Event> {
+        if (!isUrlSafe(url)) {
+            emit(Event.Failed("Model URL must start with https:// — file:// and http:// are not allowed."))
+            return@flow
+        }
         val target = modelFile()
         val partial = File(target.parentFile, target.name + ".part")
         val resumeFrom = if (partial.exists()) partial.length() else 0L
@@ -76,6 +88,8 @@ class ModelDownloader(private val ctx: Context) {
 
         val response = try {
             client.newCall(req).execute()
+        } catch (ce: kotlinx.coroutines.CancellationException) {
+            throw ce
         } catch (t: Throwable) {
             emit(Event.Failed("network: ${t.message ?: t::class.simpleName}"))
             return@flow
@@ -124,6 +138,8 @@ class ModelDownloader(private val ctx: Context) {
                     emit(Event.Progress(written, totalBytes))
                 }
                 sink.flush()
+            } catch (ce: kotlinx.coroutines.CancellationException) {
+                throw ce
             } catch (t: Throwable) {
                 emit(Event.Failed("io: ${t.message ?: t::class.simpleName}"))
                 return@flow

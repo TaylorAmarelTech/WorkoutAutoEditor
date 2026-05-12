@@ -7,6 +7,7 @@ import android.media.MediaFormat
 import android.net.Uri
 import com.workout.autoeditor.data.AudioEnvelope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.withContext
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -21,10 +22,16 @@ import kotlin.math.sqrt
  */
 class AudioAnalyzer(private val ctx: Context) {
 
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private val codecDispatcher = Dispatchers.IO.limitedParallelism(1)
+
     suspend fun analyze(
         videoUri: Uri,
         windowMs: Int = 100,
-    ): AudioEnvelope = withContext(Dispatchers.Default) {
+    ): AudioEnvelope = withContext(codecDispatcher) {
+        // MediaCodec in synchronous mode requires all dequeue/queue/release
+        // calls to happen on the same thread. limitedParallelism(1) gives us
+        // a single-threaded dispatcher confined to one IO worker.
         val extractor = MediaExtractor()
         extractor.setDataSource(ctx, videoUri, null)
         var trackIndex = -1
