@@ -42,7 +42,7 @@ class SetupScreenSmokeTest {
         // After the model-presence check resolves false on a clean test env,
         // the IDLE state should render all three primary actions.
         composeRule.waitForIdle()
-        composeRule.onNodeWithText("Download model (~500 MB)").assertIsDisplayed()
+        composeRule.onNodeWithText("Download Gemma 4 E2B (~1.9 GB)").assertIsDisplayed()
         composeRule.onNodeWithText("Configure URL / token").assertIsDisplayed()
         composeRule.onNodeWithText("Skip - use rule-based mode").assertIsDisplayed()
     }

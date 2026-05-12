@@ -21,8 +21,10 @@ import java.util.concurrent.TimeUnit
 class ModelDownloader(private val ctx: Context) {
 
     companion object {
+        // Gemma 4 E2B (2 B effective params, INT4) - publicly downloadable (no
+        // HF token required), confirmed via HEAD: 200 OK, ~1.86 GB.
         const val DEFAULT_MODEL_URL =
-            "https://huggingface.co/litert-community/Gemma3-1B-IT/resolve/main/gemma3-1b-it-int4.task"
+            "https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/resolve/main/gemma-4-E2B-it-web.task"
         private const val MODELS_DIR = "models"
         private const val MODEL_FILE = "gemma.task"
     }
@@ -42,7 +44,7 @@ class ModelDownloader(private val ctx: Context) {
         return File(dir, MODEL_FILE)
     }
 
-    fun isModelPresent(minBytes: Long = 100_000_000L): Boolean {
+    fun isModelPresent(minBytes: Long = 1_500_000_000L): Boolean {
         val f = modelFile()
         return f.exists() && f.length() >= minBytes
     }

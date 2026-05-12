@@ -48,7 +48,7 @@ class EditPipeline(private val ctx: Context) {
     private fun llmAvailable(modelPath: String?): Boolean {
         if (modelPath.isNullOrBlank()) return false
         val f = File(modelPath)
-        return f.exists() && f.length() > 100_000_000L
+        return f.exists() && f.length() > 1_500_000_000L
     }
 
     suspend fun parseInstruction(instruction: String, modelPath: String?): EditPolicy {

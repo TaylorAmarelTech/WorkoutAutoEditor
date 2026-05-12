@@ -101,7 +101,7 @@ fun SetupScreen(onReady: () -> Unit) {
         Text("Workout Auto Editor", style = MaterialTheme.typography.headlineMedium)
         Spacer(Modifier.height(8.dp))
         Text(
-            "On-device editor. Pose detection works offline; the LLM (Gemma) needs a one-time model download.",
+            "On-device editor. Pose detection works offline; Gemma 4 (E2B, ~1.9 GB) is downloaded once if you want LLM-driven instruction parsing.",
             style = MaterialTheme.typography.bodySmall,
         )
         Spacer(Modifier.height(24.dp))
@@ -158,7 +158,8 @@ fun SetupScreen(onReady: () -> Unit) {
             )
             Spacer(Modifier.height(8.dp))
             Text(
-                "Default URL is gated and needs a token. Get one at huggingface.co/settings/tokens after accepting the Gemma 3 license, OR paste a public model URL above.",
+                "Default URL is the public Gemma 4 E2B LiteRT release - no token required. " +
+                    "If you want to use a different/gated model (e.g. Gemma 4 E4B), paste a URL and HF token here.",
                 style = MaterialTheme.typography.bodySmall,
             )
             Spacer(Modifier.height(8.dp))
@@ -183,7 +184,7 @@ private fun idleControls(
     Button(
         onClick = onDownload,
         modifier = Modifier.fillMaxWidth().height(52.dp),
-    ) { Text("Download model (~500 MB)") }
+    ) { Text("Download Gemma 4 E2B (~1.9 GB)") }
     Spacer(Modifier.height(8.dp))
     OutlinedButton(
         onClick = onConfigure,

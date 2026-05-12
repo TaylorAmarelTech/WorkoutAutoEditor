@@ -11,7 +11,10 @@ import requests
 from vidcut.models import CutPlan, CutSpan, Scene, VideoMeta
 
 OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434")
-DEFAULT_MODEL = os.environ.get("VIDCUT_MODEL", "gemma3:1b")
+# Gemma 4 is the only Gemma 4 tag in the Ollama library right now (8B params,
+# 4.7 GB on disk). Smaller distilled variants are not yet published. Override
+# with VIDCUT_MODEL or --model on the CLI if you want gemma3:1b or similar.
+DEFAULT_MODEL = os.environ.get("VIDCUT_MODEL", "gemma4:latest")
 
 
 def _post(prompt: str, model: str, temperature: float = 0.2) -> str:

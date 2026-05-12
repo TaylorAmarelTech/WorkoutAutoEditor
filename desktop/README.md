@@ -18,9 +18,13 @@ python --version
 # 2. ffmpeg + ffprobe on PATH
 ffmpeg -version
 
-# 3. Ollama, with a small Gemma model
+# 3. Ollama, with Gemma 4
 ollama serve            # in one terminal
-ollama pull gemma3:1b   # ~800 MB; gemma3:4b is better but ~2.5 GB
+ollama pull gemma4      # 8B params, ~4.7 GB. Only Gemma 4 variant in
+                        # the Ollama library today; smaller distilled
+                        # versions are not yet published. For fast
+                        # iteration without the Gemma 4 quality hit,
+                        # use --model gemma3:1b (~800 MB) instead.
 ```
 
 Install vidcut itself:
@@ -91,7 +95,7 @@ Environment variables:
 | Var | Default | Purpose |
 |---|---|---|
 | `OLLAMA_URL` | `http://localhost:11434` | Where Ollama is running |
-| `VIDCUT_MODEL` | `gemma3:1b` | Default model name |
+| `VIDCUT_MODEL` | `gemma4:latest` | Default model name |
 
 ## Tests
 
