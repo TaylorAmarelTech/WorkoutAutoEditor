@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "vidcut"
-version = "0.1.0"
+version = "0.2.0"
 description = "Local Gemma-powered video editor: prompt-driven cuts via Ollama + ffmpeg"
 readme = "README.md"
 requires-python = ">=3.10"
